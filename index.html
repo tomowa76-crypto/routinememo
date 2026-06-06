@@ -1,0 +1,419 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="週間タスク">
+<title>週間タスク</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --accent: #7F77DD;
+    --accent-light: #EEEDFE;
+    --done: #1D9E75;
+    --done-light: #E1F5EE;
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #eeede8;
+    --text: #1a1a18;
+    --text2: #6b6b68;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.2);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+      --text: #f0efe8; --text2: #9a9994;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+    }
+  }
+  body { font-family: -apple-system,'Hiragino Sans','Noto Sans JP',sans-serif; background:var(--bg2); color:var(--text); min-height:100vh; padding-bottom:3rem; }
+  #app { max-width:600px; margin:0 auto; padding:1rem; }
+
+  .header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; flex-wrap:wrap; gap:8px; position:sticky; top:0; background:var(--bg2); padding:0.75rem 0; z-index:10; }
+  .title { font-size:18px; font-weight:600; }
+  .header-btns { display:flex; gap:8px; }
+
+  button { font-family:inherit; font-size:13px; cursor:pointer; border:1px solid var(--border2); background:var(--bg); color:var(--text); padding:7px 14px; border-radius:var(--radius-sm); -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+  button:active { opacity:0.7; }
+
+  .settings-panel { background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; margin-bottom:1rem; display:none; }
+  .settings-panel.open { display:block; }
+  .settings-title { font-size:13px; font-weight:600; color:var(--text2); margin-bottom:8px; }
+
+  .routine-item { border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:8px; background:var(--bg); }
+  .routine-item-top { display:flex; align-items:center; gap:8px; }
+  .routine-name { flex:1; font-size:14px; }
+  .routine-del { background:none; border:none; color:var(--text2); font-size:18px; padding:0 4px; cursor:pointer; }
+  .routine-days { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .day-chip { font-size:12px; padding:4px 10px; border-radius:99px; border:1px solid var(--border2); background:var(--bg2); color:var(--text2); cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .day-chip.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .day-chip-all { font-size:12px; padding:4px 10px; border-radius:99px; border:1px solid var(--border2); background:var(--bg2); color:var(--text2); cursor:pointer; }
+  .day-chip-all.active { background:var(--done); color:#fff; border-color:var(--done); }
+
+  .add-routine-area { margin-top:12px; border-top:1px solid var(--border); padding-top:12px; }
+  .add-routine-name-row { display:flex; gap:6px; margin-bottom:8px; }
+  .new-day-chips { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  .new-day-chip { font-size:12px; padding:4px 10px; border-radius:99px; border:1px solid var(--border2); background:var(--bg2); color:var(--text2); cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .new-day-chip.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .new-day-chip-all { font-size:12px; padding:4px 10px; border-radius:99px; border:1px solid var(--done); background:var(--bg2); color:var(--done); cursor:pointer; }
+  .new-day-chip-all.active { background:var(--done); color:#fff; }
+
+  .summary { display:flex; gap:10px; margin-bottom:1rem; }
+  .summary-card { flex:1; background:var(--bg); border-radius:var(--radius-sm); border:1px solid var(--border); padding:10px 12px; }
+  .summary-label { font-size:11px; color:var(--text2); margin-bottom:3px; }
+  .summary-num { font-size:20px; font-weight:600; }
+  .summary-sub { font-size:11px; color:var(--text2); }
+
+  .week { display:flex; flex-direction:column; gap:10px; }
+  .day-card { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .day-card.today { border:2px solid var(--accent); }
+  .day-header { display:flex; align-items:center; gap:8px; padding:10px 14px; background:var(--bg2); cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .day-name { font-size:13px; font-weight:600; min-width:64px; }
+  .day-date { font-size:12px; color:var(--text2); }
+  .today-badge { font-size:11px; background:var(--accent-light); color:var(--accent); padding:2px 8px; border-radius:99px; font-weight:600; margin-left:auto; }
+  .progress-bar { flex:1; height:4px; background:var(--bg3); border-radius:99px; overflow:hidden; }
+  .progress-fill { height:100%; background:var(--accent); border-radius:99px; transition:width 0.3s; }
+  .pct-label { font-size:12px; color:var(--text2); min-width:30px; text-align:right; }
+
+  .day-body { padding:10px 14px; display:flex; flex-direction:column; gap:6px; }
+  .day-body.collapsed { display:none; }
+  .section-label { font-size:11px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:0.05em; margin-top:4px; }
+
+  .task-row { display:flex; align-items:center; gap:10px; padding:5px 0; }
+  .task-row.done .task-label { color:var(--text2); text-decoration:line-through; }
+  .sparkle-wrap { position:relative; flex-shrink:0; }
+  .cb { width:20px; height:20px; cursor:pointer; accent-color:var(--done); flex-shrink:0; }
+  .sparkle-pop { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:24px; pointer-events:none; animation:sparkleAnim 0.7s ease forwards; z-index:5; }
+  @keyframes sparkleAnim {
+    0%   { opacity:1; transform:translate(-50%,-50%) scale(0.5); }
+    40%  { opacity:1; transform:translate(-50%,-120%) scale(1.5); }
+    100% { opacity:0; transform:translate(-50%,-180%) scale(0.8); }
+  }
+  .task-label { font-size:14px; flex:1; line-height:1.4; }
+  .day-tag { font-size:10px; color:var(--accent); margin-left:4px; }
+  .recurring-badge { font-size:11px; color:var(--text2); }
+  .del-btn { background:none; border:none; color:var(--text2); font-size:18px; padding:0 2px; cursor:pointer; opacity:0.5; }
+
+  .add-row { display:flex; gap:6px; margin-top:4px; }
+  .add-input { flex:1; font-size:14px; padding:8px 10px; border:1px solid var(--border2); border-radius:var(--radius-sm); background:var(--bg2); color:var(--text); outline:none; -webkit-appearance:none; }
+  .add-input:focus { border-color:var(--accent); }
+  .add-select { font-size:13px; padding:8px 6px; border:1px solid var(--border2); border-radius:var(--radius-sm); background:var(--bg2); color:var(--text); -webkit-appearance:none; text-align:center; }
+  .add-btn { font-size:20px; padding:6px 12px; border:1px solid var(--border2); border-radius:var(--radius-sm); background:var(--accent); color:#fff; line-height:1; }
+  .empty { font-size:13px; color:var(--text2); padding:4px 0; }
+
+  .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; align-items:flex-end; justify-content:center; }
+  .modal-bg.open { display:flex; }
+  .modal { background:var(--bg); border-radius:var(--radius) var(--radius) 0 0; border-top:1px solid var(--border2); padding:1.5rem; width:100%; max-width:600px; max-height:85vh; display:flex; flex-direction:column; gap:12px; }
+  .modal-title { font-size:16px; font-weight:600; }
+  .modal-list { overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
+  .modal-item { display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid var(--border); border-radius:var(--radius-sm); font-size:14px; }
+  .modal-item.carry { background:var(--done-light); border-color:var(--done); }
+  .modal-item-day { font-size:11px; color:var(--text2); min-width:36px; }
+  .modal-item-label { flex:1; }
+  .modal-item-btns { display:flex; gap:6px; }
+  .modal-btns { display:flex; gap:8px; justify-content:flex-end; padding-top:4px; }
+  .btn-primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .btn-danger { color:#A32D2D; border-color:#F09595; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="title">📋 週間タスク</div>
+    <div class="header-btns">
+      <button onclick="toggleSettings()">⚙️ 設定</button>
+      <button class="btn-danger" onclick="openReset()">🔄 リセット</button>
+    </div>
+  </div>
+
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-title">登録済みルーティーン</div>
+    <div id="routineList"></div>
+    <div class="add-routine-area">
+      <div class="settings-title">新しいルーティーンを追加</div>
+      <div class="add-routine-name-row">
+        <input class="add-input" id="routineInput" placeholder="ルーティーン名…" onkeydown="if(event.key==='Enter')addRoutine()">
+      </div>
+      <div class="new-day-chips" id="newDayChips"></div>
+      <button class="btn-primary" onclick="addRoutine()" style="width:100%">＋ 追加する</button>
+    </div>
+  </div>
+
+  <div class="summary" id="summary"></div>
+  <div class="week" id="week"></div>
+</div>
+
+<div class="modal-bg" id="resetModal">
+  <div class="modal">
+    <div class="modal-title">週リセット — やり残し確認</div>
+    <div class="modal-list" id="resetList"></div>
+    <div class="modal-btns">
+      <button onclick="closeReset()">キャンセル</button>
+      <button class="btn-primary" onclick="doReset()">リセット実行</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DAY_NAMES = ['月曜日','火曜日','水曜日','木曜日','金曜日','土曜日','日曜日'];
+const DAY_SHORT = ['月','火','水','木','金','土','日'];
+const EMOJIS = ['✨','🌟','⭐','💫','🎉'];
+
+function uid() { return Math.random().toString(36).slice(2,9); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function getMonday(d) {
+  const dt = new Date(d); const day = dt.getDay();
+  dt.setDate(dt.getDate()+(day===0?-6:1-day)); dt.setHours(0,0,0,0); return dt;
+}
+function buildWeek(carryover=[]) {
+  const mon = getMonday(new Date());
+  return Array.from({length:7},(_,i)=>{
+    const d = new Date(mon); d.setDate(d.getDate()+i);
+    return { date:d.toISOString().slice(0,10), tasks:i===0?carryover.map(t=>({...t,id:uid()})):[], checked:{} };
+  });
+}
+function load() { try { return JSON.parse(localStorage.getItem('adhd_weekly2')||'null'); } catch { return null; } }
+function save(s) { try { localStorage.setItem('adhd_weekly2',JSON.stringify(s)); } catch {} }
+
+let state = load() || {
+  routines:[
+    {id:uid(),name:'朝食',days:[]},
+    {id:uid(),name:'洗顔・歯磨き',days:[]},
+    {id:uid(),name:'洗濯',days:[]},
+  ],
+  weeks:buildWeek(),
+  carryover:[]
+};
+if (state.routines.length && typeof state.routines[0]==='string') {
+  state.routines = state.routines.map(r=>({id:uid(),name:r,days:[]}));
+}
+const thisMonday = getMonday(new Date()).toISOString().slice(0,10);
+if (!state.weeks||!state.weeks.length||state.weeks[0].date!==thisMonday) {
+  state.weeks=buildWeek(state.carryover||[]); state.carryover=[]; save(state);
+}
+
+let collapsed={};
+try { collapsed=JSON.parse(localStorage.getItem('adhd_collapsed')||'{}'); } catch {}
+let resetItems=[];
+const today=new Date().toISOString().slice(0,10);
+let newRoutineDays=[];
+
+function routineApplies(r,dayIdx) {
+  return !r.days||r.days.length===0||r.days.includes(dayIdx);
+}
+
+function render() { renderRoutineList(); renderNewDayChips(); renderSummary(); renderWeek(); }
+
+function renderNewDayChips() {
+  const allActive=newRoutineDays.length===0;
+  document.getElementById('newDayChips').innerHTML =
+    `<span class="new-day-chip-all ${allActive?'active':''}" onclick="toggleNewDayAll()">毎日</span>`
+    +DAY_SHORT.map((d,i)=>`<span class="new-day-chip ${!allActive&&newRoutineDays.includes(i)?'active':''}" onclick="toggleNewDay(${i})">${d}</span>`).join('');
+}
+function toggleNewDayAll() { newRoutineDays=[]; renderNewDayChips(); }
+function toggleNewDay(i) {
+  newRoutineDays=newRoutineDays.includes(i)?newRoutineDays.filter(d=>d!==i):[...newRoutineDays,i].sort((a,b)=>a-b);
+  renderNewDayChips();
+}
+
+function renderRoutineList() {
+  const el=document.getElementById('routineList');
+  if(!state.routines.length){el.innerHTML='<div class="empty" style="margin-bottom:8px">まだルーティーンがありません</div>';return;}
+  el.innerHTML=state.routines.map((r,ri)=>{
+    const allActive=!r.days||r.days.length===0;
+    return `<div class="routine-item">
+      <div class="routine-item-top">
+        <span class="routine-name">${esc(r.name)}</span>
+        <button class="routine-del" onclick="delRoutine(${ri})">✕</button>
+      </div>
+      <div class="routine-days">
+        <span class="day-chip-all ${allActive?'active':''}" onclick="setRoutineDayAll(${ri})">毎日</span>
+        ${DAY_SHORT.map((d,i)=>`<span class="day-chip ${!allActive&&r.days.includes(i)?'active':''}" onclick="toggleRoutineDay(${ri},${i})">${d}</span>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setRoutineDayAll(ri) { state.routines[ri].days=[]; save(state); renderRoutineList(); renderWeek(); }
+function toggleRoutineDay(ri,dayIdx) {
+  const days=state.routines[ri].days||[];
+  state.routines[ri].days=days.includes(dayIdx)?days.filter(d=>d!==dayIdx):[...days,dayIdx].sort((a,b)=>a-b);
+  save(state); renderRoutineList(); renderWeek();
+}
+
+function renderSummary() {
+  let tR=0,dR=0,tT=0,dT=0;
+  state.weeks.forEach((d,i)=>{
+    state.routines.forEach(r=>{if(!routineApplies(r,i))return;tR++;if(d.checked&&d.checked[r.id])dR++;});
+    (d.tasks||[]).forEach(t=>{tT++;if(t.done)dT++;});
+  });
+  const pct=(tR+tT)>0?Math.round((dR+dT)/(tR+tT)*100):0;
+  document.getElementById('summary').innerHTML=[
+    {l:'週の達成率',v:`${pct}%`,s:'全タスク'},
+    {l:'ルーティーン',v:`${dR}/${tR}`,s:'完了'},
+    {l:'やりたいこと',v:`${dT}/${tT}`,s:'完了'},
+  ].map(c=>`<div class="summary-card"><div class="summary-label">${c.l}</div><div class="summary-num">${c.v}</div><div class="summary-sub">${c.s}</div></div>`).join('');
+}
+
+function renderWeek() {
+  document.getElementById('week').innerHTML=state.weeks.map((day,i)=>{
+    const isToday=day.date===today;
+    const d=new Date(day.date+'T00:00:00');
+    const mmdd=`${d.getMonth()+1}/${d.getDate()}`;
+    const applicable=state.routines.filter(r=>routineApplies(r,i));
+    const rDone=applicable.filter(r=>day.checked&&day.checked[r.id]).length;
+    const tDone=(day.tasks||[]).filter(t=>t.done).length;
+    const total=applicable.length+(day.tasks||[]).length;
+    const pct=total>0?Math.round((rDone+tDone)/total*100):0;
+    const isCollapsed=collapsed[i]&&!isToday;
+
+    const routineRows=applicable.map(r=>{
+      const chk=!!(day.checked&&day.checked[r.id]);
+      const dayTag=r.days&&r.days.length>0?`<span class="day-tag">${r.days.map(d=>DAY_SHORT[d]).join('・')}</span>`:'';
+      return `<div class="task-row ${chk?'done':''}">
+        <div class="sparkle-wrap">
+          <input class="cb" type="checkbox" ${chk?'checked':''} onchange="toggleRoutine(${i},'${r.id}',this)" aria-label="${esc(r.name)}">
+        </div>
+        <span class="task-label">${esc(r.name)}${dayTag}</span>
+      </div>`;
+    }).join('');
+
+    const taskRows=(day.tasks||[]).map(t=>`
+      <div class="task-row ${t.done?'done':''}">
+        <div class="sparkle-wrap">
+          <input class="cb" type="checkbox" ${t.done?'checked':''} onchange="toggleTask(${i},'${t.id}',this)" aria-label="${esc(t.label)}">
+        </div>
+        <span class="task-label">${esc(t.label)}</span>
+        ${t.recurring?'<span class="recurring-badge">🔁</span>':''}
+        <button class="del-btn" onclick="delTask(${i},'${t.id}')">✕</button>
+      </div>`).join('');
+
+    return `<div class="day-card ${isToday?'today':''}">
+      <div class="day-header" onclick="toggleCollapse(${i})">
+        <span class="day-name">${DAY_NAMES[i]}</span>
+        <span class="day-date">${mmdd}</span>
+        ${isToday?'<span class="today-badge">今日</span>':''}
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <span class="pct-label">${pct}%</span>
+      </div>
+      <div class="day-body ${isCollapsed?'collapsed':''}">
+        ${applicable.length?`<div class="section-label">ルーティーン</div>${routineRows}`:''}
+        <div class="section-label" style="margin-top:6px">やりたいこと</div>
+        ${(day.tasks&&day.tasks.length)?taskRows:'<div class="empty">まだなし</div>'}
+        <div class="add-row">
+          <input class="add-input" id="inp${i}" placeholder="追加…" onkeydown="if(event.key==='Enter')addTask(${i})">
+          <select class="add-select" id="sel${i}"><option value="once">1回</option><option value="recurring">毎週</option></select>
+          <button class="add-btn" onclick="addTask(${i})">＋</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCollapse(i) {
+  if(state.weeks[i].date===today)return;
+  collapsed[i]=!collapsed[i];
+  try{localStorage.setItem('adhd_collapsed',JSON.stringify(collapsed));}catch{}
+  renderWeek();
+}
+function sparkle(el) {
+  const wrap=el.closest('.sparkle-wrap');if(!wrap)return;
+  const sp=document.createElement('span');sp.className='sparkle-pop';
+  sp.textContent=EMOJIS[Math.floor(Math.random()*EMOJIS.length)];
+  wrap.appendChild(sp);setTimeout(()=>sp.remove(),800);
+}
+function toggleRoutine(i,rid,el) {
+  if(!state.weeks[i].checked)state.weeks[i].checked={};
+  state.weeks[i].checked[rid]=el.checked;
+  if(el.checked)sparkle(el);
+  el.closest('.task-row').className='task-row'+(el.checked?' done':'');
+  save(state);renderSummary();updateProgress(i);
+}
+function toggleTask(i,id,el) {
+  const t=state.weeks[i].tasks.find(t=>t.id===id);
+  if(t){t.done=el.checked;if(el.checked)sparkle(el);}
+  el.closest('.task-row').className='task-row'+(el.checked?' done':'');
+  save(state);renderSummary();updateProgress(i);
+}
+function updateProgress(i) {
+  const day=state.weeks[i];
+  const applicable=state.routines.filter(r=>routineApplies(r,i));
+  const total=applicable.length+(day.tasks||[]).length;
+  const done=applicable.filter(r=>day.checked&&day.checked[r.id]).length+(day.tasks||[]).filter(t=>t.done).length;
+  const pct=total>0?Math.round(done/total*100):0;
+  const cards=document.querySelectorAll('.day-card');
+  if(cards[i]){
+    const fill=cards[i].querySelector('.progress-fill');
+    const lbl=cards[i].querySelector('.pct-label');
+    if(fill)fill.style.width=pct+'%';
+    if(lbl)lbl.textContent=pct+'%';
+  }
+}
+function addTask(i) {
+  const inp=document.getElementById('inp'+i),sel=document.getElementById('sel'+i);
+  const label=inp.value.trim();if(!label)return;
+  const recurring=sel.value==='recurring';
+  if(recurring){state.weeks.forEach(d=>{if(!d.tasks)d.tasks=[];d.tasks.push({id:uid(),label,done:false,recurring:true});});}
+  else{if(!state.weeks[i].tasks)state.weeks[i].tasks=[];state.weeks[i].tasks.push({id:uid(),label,done:false,recurring:false});}
+  inp.value='';save(state);render();
+}
+function delTask(i,id) {
+  const t=state.weeks[i].tasks.find(t=>t.id===id);if(!t)return;
+  if(t.recurring){state.weeks.forEach(d=>{d.tasks=(d.tasks||[]).filter(x=>!(x.label===t.label&&x.recurring));});}
+  else{state.weeks[i].tasks=state.weeks[i].tasks.filter(x=>x.id!==id);}
+  save(state);render();
+}
+function addRoutine() {
+  const inp=document.getElementById('routineInput');
+  const name=inp.value.trim();if(!name)return;
+  state.routines.push({id:uid(),name,days:[...newRoutineDays]});
+  inp.value='';newRoutineDays=[];save(state);render();
+}
+function delRoutine(ri) {
+  const r=state.routines[ri];
+  state.routines.splice(ri,1);
+  state.weeks.forEach(d=>{if(d.checked)delete d.checked[r.id];});
+  save(state);render();
+}
+function toggleSettings() { document.getElementById('settingsPanel').classList.toggle('open'); }
+function openReset() {
+  resetItems=[];
+  state.weeks.forEach((day,i)=>{(day.tasks||[]).forEach(t=>{if(!t.done&&!t.recurring)resetItems.push({...t,dayIdx:i,dayName:DAY_NAMES[i],carry:true});});});
+  document.getElementById('resetList').innerHTML=resetItems.length===0
+    ?'<p style="font-size:14px;color:var(--text2)">未完了の「やりたいこと」はありません！</p>'
+    :`<p style="font-size:14px;color:var(--text2);margin-bottom:8px">未完了が${resetItems.length}件あります。来週に持ち越しますか？</p>`
+      +resetItems.map(t=>`<div class="modal-item carry" id="mi_${t.id}">
+        <span class="modal-item-day">${t.dayName.slice(0,2)}</span>
+        <span class="modal-item-label">${esc(t.label)}</span>
+        <div class="modal-item-btns">
+          <button id="cb_${t.id}" class="btn-primary" style="font-size:12px;padding:5px 10px" onclick="setCarry('${t.id}',true)">来週へ</button>
+          <button id="cd_${t.id}" style="font-size:12px;padding:5px 10px" onclick="setCarry('${t.id}',false)">削除</button>
+        </div></div>`).join('');
+  document.getElementById('resetModal').classList.add('open');
+}
+function setCarry(id,carry) {
+  const item=resetItems.find(t=>t.id===id);if(!item)return;
+  item.carry=carry;
+  const mi=document.getElementById('mi_'+id);if(mi)mi.className='modal-item'+(carry?' carry':'');
+  const cb=document.getElementById('cb_'+id);if(cb)cb.className=carry?'btn-primary':'';
+  const cd=document.getElementById('cd_'+id);if(cd)cd.className=carry?'':'btn-danger';
+}
+function closeReset() { document.getElementById('resetModal').classList.remove('open'); }
+function doReset() {
+  const carryover=resetItems.filter(t=>t.carry).map(t=>({id:uid(),label:t.label,done:false,recurring:false}));
+  const seen=new Set(),recurring=[];
+  state.weeks.forEach(d=>(d.tasks||[]).forEach(t=>{if(t.recurring&&!seen.has(t.label)){seen.add(t.label);recurring.push(t);}}));
+  state.weeks=buildWeek(carryover).map(d=>({...d,tasks:[...d.tasks,...recurring.map(t=>({id:uid(),label:t.label,done:false,recurring:true}))]}));
+  state.carryover=[];save(state);closeReset();render();
+}
+render();
+</script>
+</body>
+</html>
