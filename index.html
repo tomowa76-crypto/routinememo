@@ -5,8 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="週間タスク">
-<title>週間タスク</title>
+<meta name="apple-mobile-web-app-title" content="ルーティンメモ">
+<link rel="apple-touch-icon" href="icon.jpg">
+<link rel="icon" href="icon.jpg">
+<title>ルーティンメモ</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -34,21 +36,11 @@
   body { font-family: -apple-system,'Hiragino Sans','Noto Sans JP',sans-serif; background:var(--bg2); color:var(--text); min-height:100vh; padding-bottom:3rem; }
   #app { max-width:600px; margin:0 auto; padding:1rem; }
 
-  /* ログイン画面 */
-  #loginScreen { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:80vh; gap:24px; }
-  .login-title { font-size:24px; font-weight:700; }
-  .login-sub { font-size:14px; color:var(--text2); text-align:center; line-height:1.6; }
-  .login-btn { display:flex; align-items:center; gap:12px; background:#fff; border:1px solid var(--border2); border-radius:var(--radius); padding:14px 24px; font-size:15px; font-weight:500; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.08); -webkit-tap-highlight-color:transparent; }
-  .login-btn:active { opacity:0.8; }
-  .login-btn img { width:22px; height:22px; }
-
-  /* ローディング */
-  #loadingScreen { display:flex; align-items:center; justify-content:center; min-height:80vh; font-size:14px; color:var(--text2); }
-
   .header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; flex-wrap:wrap; gap:8px; position:sticky; top:0; background:var(--bg2); padding:0.75rem 0; z-index:10; }
+  .title-wrap { display:flex; align-items:center; gap:10px; }
+  .title-icon { width:32px; height:32px; border-radius:8px; object-fit:cover; }
   .title { font-size:18px; font-weight:600; }
-  .header-btns { display:flex; gap:8px; }
-  .user-avatar { width:28px; height:28px; border-radius:50%; object-fit:cover; border:1px solid var(--border2); }
+  .header-btns { display:flex; gap:8px; flex-wrap:wrap; }
 
   button { font-family:inherit; font-size:13px; cursor:pointer; border:1px solid var(--border2); background:var(--bg); color:var(--text); padding:7px 14px; border-radius:var(--radius-sm); -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
   button:active { opacity:0.7; }
@@ -74,6 +66,11 @@
   .new-day-chip.active { background:var(--accent); color:#fff; border-color:var(--accent); }
   .new-day-chip-all { font-size:12px; padding:4px 10px; border-radius:99px; border:1px solid var(--done); background:var(--bg2); color:var(--done); cursor:pointer; }
   .new-day-chip-all.active { background:var(--done); color:#fff; }
+
+  .io-section { margin-top:12px; border-top:1px solid var(--border); padding-top:12px; display:flex; gap:8px; flex-wrap:wrap; }
+  .io-btn { flex:1; min-width:120px; text-align:center; font-size:13px; padding:10px; border-radius:var(--radius-sm); }
+  .io-btn.export { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .io-btn.import { background:var(--bg); color:var(--text); border-color:var(--border2); }
 
   .summary { display:flex; gap:10px; margin-bottom:1rem; }
   .summary-card { flex:1; background:var(--bg); border-radius:var(--radius-sm); border:1px solid var(--border); padding:10px 12px; }
@@ -118,9 +115,6 @@
   .add-btn { font-size:20px; padding:6px 12px; border:1px solid var(--border2); border-radius:var(--radius-sm); background:var(--accent); color:#fff; line-height:1; }
   .empty { font-size:13px; color:var(--text2); padding:4px 0; }
 
-  .save-indicator { font-size:11px; color:var(--text2); text-align:center; padding:4px; opacity:0; transition:opacity 0.3s; }
-  .save-indicator.show { opacity:1; }
-
   .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; align-items:flex-end; justify-content:center; }
   .modal-bg.open { display:flex; }
   .modal { background:var(--bg); border-radius:var(--radius) var(--radius) 0 0; border-top:1px solid var(--border2); padding:1.5rem; width:100%; max-width:600px; max-height:85vh; display:flex; flex-direction:column; gap:12px; }
@@ -134,29 +128,21 @@
   .modal-btns { display:flex; gap:8px; justify-content:flex-end; padding-top:4px; }
   .btn-primary { background:var(--accent); color:#fff; border-color:var(--accent); }
   .btn-danger { color:#A32D2D; border-color:#F09595; }
+
+  .toast { position:fixed; bottom:2rem; left:50%; transform:translateX(-50%); background:#333; color:#fff; font-size:13px; padding:10px 20px; border-radius:99px; opacity:0; transition:opacity 0.3s; z-index:300; pointer-events:none; }
+  .toast.show { opacity:1; }
 </style>
 </head>
 <body>
-
-<div id="loadingScreen">読み込み中…</div>
-<div id="loginScreen" style="display:none">
-  <div style="font-size:48px">📋</div>
-  <div class="login-title">週間タスク</div>
-  <div class="login-sub">Googleアカウントでログインして<br>どの端末からでも使えます</div>
-  <button class="login-btn" onclick="signIn()">
-    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
-    Googleでログイン
-  </button>
-</div>
-
-<div id="mainApp" style="display:none">
 <div id="app">
   <div class="header">
-    <div class="title">📋 週間タスク</div>
+    <div class="title-wrap">
+      <img class="title-icon" src="icon.jpg" alt="icon">
+      <div class="title">ルーティンメモ</div>
+    </div>
     <div class="header-btns">
       <button onclick="toggleSettings()">⚙️ 設定</button>
       <button class="btn-danger" onclick="openReset()">🔄 リセット</button>
-      <img id="userAvatar" class="user-avatar" src="" alt="" onclick="signOut()" title="ログアウト" style="display:none">
     </div>
   </div>
 
@@ -169,14 +155,18 @@
         <input class="add-input" id="routineInput" placeholder="ルーティーン名…" onkeydown="if(event.key==='Enter')addRoutine()">
       </div>
       <div class="new-day-chips" id="newDayChips"></div>
-      <button class="btn-primary" onclick="addRoutine()" style="width:100%">＋ 追加する</button>
+      <button class="btn-primary" onclick="addRoutine()" style="width:100%;margin-bottom:0">＋ 追加する</button>
     </div>
+    <div class="io-section">
+      <button class="io-btn export" onclick="exportData()">📤 データをエクスポート</button>
+      <button class="io-btn import" onclick="document.getElementById('importFile').click()">📥 データをインポート</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+    </div>
+    <div style="font-size:11px;color:var(--text2);margin-top:8px">※ 機種変更時はエクスポートしたファイルを新しいスマホでインポートしてください</div>
   </div>
 
   <div class="summary" id="summary"></div>
-  <div class="save-indicator" id="saveIndicator">保存中…</div>
   <div class="week" id="week"></div>
-</div>
 </div>
 
 <div class="modal-bg" id="resetModal">
@@ -190,28 +180,9 @@
   </div>
 </div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as fbSignOut, onAuthStateChanged }
-  from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc }
-  from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+<div class="toast" id="toast"></div>
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCXnhz7cdMxBDG_Mr-PeTM9mXu7V4WYhTI",
-  authDomain: "routinememo-4f5a0.firebaseapp.com",
-  databaseURL: "https://routinememo-4f5a0-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "routinememo-4f5a0",
-  storageBucket: "routinememo-4f5a0.firebasestorage.app",
-  messagingSenderId: "1081801120622",
-  appId: "1:1081801120622:web:592c670faf6c869a17ff7f"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-// ── 定数 ──
+<script>
 const DAY_NAMES = ['月曜日','火曜日','水曜日','木曜日','金曜日','土曜日','日曜日'];
 const DAY_SHORT = ['月','火','水','木','金','土','日'];
 const EMOJIS = ['✨','🌟','⭐','💫','🎉'];
@@ -230,102 +201,86 @@ function buildWeek(carryover=[]) {
     return { date:d.toISOString().slice(0,10), tasks:i===0?carryover.map(t=>({...t,id:uid()})):[], checked:{} };
   });
 }
+function load() { try { return JSON.parse(localStorage.getItem('adhd_weekly2')||'null'); } catch { return null; } }
+function save(s) { try { localStorage.setItem('adhd_weekly2',JSON.stringify(s)); } catch {} }
 
-let currentUser = null;
-let state = null;
-let collapsed = {};
-let resetItems = [];
-let newRoutineDays = [];
-let saveTimer = null;
-const today = new Date().toISOString().slice(0,10);
-
-// ── Firebase Auth ──
-window.signIn = async () => {
-  const provider = new GoogleAuthProvider();
-  try { await signInWithPopup(auth, provider); } catch(e) { alert('ログインに失敗しました: ' + e.message); }
+let state = load() || {
+  routines:[
+    {id:uid(),name:'朝食',days:[]},
+    {id:uid(),name:'洗顔・歯磨き',days:[]},
+    {id:uid(),name:'洗濯',days:[]},
+  ],
+  weeks:buildWeek(),
+  carryover:[]
 };
-window.signOut = async () => {
-  if (confirm('ログアウトしますか？')) await fbSignOut(auth);
-};
-
-onAuthStateChanged(auth, async (user) => {
-  document.getElementById('loadingScreen').style.display = 'none';
-  if (user) {
-    currentUser = user;
-    const avatar = document.getElementById('userAvatar');
-    if (user.photoURL) { avatar.src = user.photoURL; avatar.style.display = 'block'; }
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'block';
-    await loadFromFirestore();
-    render();
-  } else {
-    currentUser = null;
-    document.getElementById('loginScreen').style.display = 'flex';
-    document.getElementById('mainApp').style.display = 'none';
-  }
-});
-
-// ── Firestore 読み書き ──
-async function loadFromFirestore() {
-  const ref = doc(db, 'users', currentUser.uid);
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    state = snap.data();
-    // 旧フォーマット移行
-    if (state.routines && state.routines.length && typeof state.routines[0]==='string') {
-      state.routines = state.routines.map(r=>({id:uid(),name:r,days:[]}));
-    }
-  } else {
-    state = {
-      routines:[
-        {id:uid(),name:'朝食',days:[]},
-        {id:uid(),name:'洗顔・歯磨き',days:[]},
-        {id:uid(),name:'洗濯',days:[]},
-      ],
-      weeks:buildWeek(),
-      carryover:[]
-    };
-  }
-  // 週チェック
-  const thisMonday = getMonday(new Date()).toISOString().slice(0,10);
-  if (!state.weeks||!state.weeks.length||state.weeks[0].date!==thisMonday) {
-    state.weeks=buildWeek(state.carryover||[]); state.carryover=[];
-  }
+if (state.routines.length && typeof state.routines[0]==='string') {
+  state.routines = state.routines.map(r=>({id:uid(),name:r,days:[]}));
+}
+const thisMonday = getMonday(new Date()).toISOString().slice(0,10);
+if (!state.weeks||!state.weeks.length||state.weeks[0].date!==thisMonday) {
+  state.weeks=buildWeek(state.carryover||[]); state.carryover=[]; save(state);
 }
 
-function scheduleSave() {
-  showSaveIndicator();
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
-    if (!currentUser) return;
-    await setDoc(doc(db,'users',currentUser.uid), state);
-    hideSaveIndicator();
-  }, 1500);
-}
+let collapsed={};
+try { collapsed=JSON.parse(localStorage.getItem('adhd_collapsed')||'{}'); } catch {}
+let resetItems=[];
+const today=new Date().toISOString().slice(0,10);
+let newRoutineDays=[];
 
-function showSaveIndicator() {
-  const el = document.getElementById('saveIndicator');
-  el.textContent = '保存中…'; el.classList.add('show');
-}
-function hideSaveIndicator() {
-  const el = document.getElementById('saveIndicator');
-  el.textContent = '✓ 保存しました'; 
-  setTimeout(()=>el.classList.remove('show'), 1500);
-}
-
-// ── ユーティリティ ──
 function routineApplies(r,dayIdx) {
   return !r.days||r.days.length===0||r.days.includes(dayIdx);
 }
 
-// ── レンダリング ──
+function showToast(msg) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+// エクスポート
+function exportData() {
+  const json=JSON.stringify(state,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const date=new Date().toISOString().slice(0,10);
+  a.href=url; a.download=`routinememo_${date}.json`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast('エクスポートしました！');
+}
+
+// インポート
+function importData(e) {
+  const file=e.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=(ev)=>{
+    try {
+      const data=JSON.parse(ev.target.result);
+      if(!data.routines||!data.weeks) throw new Error('フォーマットが違います');
+      if(confirm('現在のデータを上書きしてインポートしますか？')){
+        state=data; save(state); render();
+        showToast('インポートしました！');
+      }
+    } catch(err) {
+      alert('インポートに失敗しました: '+err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value='';
+}
+
 function render() { renderRoutineList(); renderNewDayChips(); renderSummary(); renderWeek(); }
 
 function renderNewDayChips() {
   const allActive=newRoutineDays.length===0;
   document.getElementById('newDayChips').innerHTML =
-    `<span class="new-day-chip-all ${allActive?'active':''}" onclick="window._toggleNewDayAll()">毎日</span>`
-    +DAY_SHORT.map((d,i)=>`<span class="new-day-chip ${!allActive&&newRoutineDays.includes(i)?'active':''}" onclick="window._toggleNewDay(${i})">${d}</span>`).join('');
+    `<span class="new-day-chip-all ${allActive?'active':''}" onclick="toggleNewDayAll()">毎日</span>`
+    +DAY_SHORT.map((d,i)=>`<span class="new-day-chip ${!allActive&&newRoutineDays.includes(i)?'active':''}" onclick="toggleNewDay(${i})">${d}</span>`).join('');
+}
+function toggleNewDayAll() { newRoutineDays=[]; renderNewDayChips(); }
+function toggleNewDay(i) {
+  newRoutineDays=newRoutineDays.includes(i)?newRoutineDays.filter(d=>d!==i):[...newRoutineDays,i].sort((a,b)=>a-b);
+  renderNewDayChips();
 }
 
 function renderRoutineList() {
@@ -336,14 +291,21 @@ function renderRoutineList() {
     return `<div class="routine-item">
       <div class="routine-item-top">
         <span class="routine-name">${esc(r.name)}</span>
-        <button class="routine-del" onclick="window._delRoutine(${ri})">✕</button>
+        <button class="routine-del" onclick="delRoutine(${ri})">✕</button>
       </div>
       <div class="routine-days">
-        <span class="day-chip-all ${allActive?'active':''}" onclick="window._setRoutineDayAll(${ri})">毎日</span>
-        ${DAY_SHORT.map((d,i)=>`<span class="day-chip ${!allActive&&r.days.includes(i)?'active':''}" onclick="window._toggleRoutineDay(${ri},${i})">${d}</span>`).join('')}
+        <span class="day-chip-all ${allActive?'active':''}" onclick="setRoutineDayAll(${ri})">毎日</span>
+        ${DAY_SHORT.map((d,i)=>`<span class="day-chip ${!allActive&&r.days.includes(i)?'active':''}" onclick="toggleRoutineDay(${ri},${i})">${d}</span>`).join('')}
       </div>
     </div>`;
   }).join('');
+}
+
+function setRoutineDayAll(ri) { state.routines[ri].days=[]; save(state); renderRoutineList(); renderWeek(); }
+function toggleRoutineDay(ri,dayIdx) {
+  const days=state.routines[ri].days||[];
+  state.routines[ri].days=days.includes(dayIdx)?days.filter(d=>d!==dayIdx):[...days,dayIdx].sort((a,b)=>a-b);
+  save(state); renderRoutineList(); renderWeek();
 }
 
 function renderSummary() {
@@ -377,7 +339,7 @@ function renderWeek() {
       const dayTag=r.days&&r.days.length>0?`<span class="day-tag">${r.days.map(d=>DAY_SHORT[d]).join('・')}</span>`:'';
       return `<div class="task-row ${chk?'done':''}">
         <div class="sparkle-wrap">
-          <input class="cb" type="checkbox" ${chk?'checked':''} onchange="window._toggleRoutine(${i},'${r.id}',this)">
+          <input class="cb" type="checkbox" ${chk?'checked':''} onchange="toggleRoutine(${i},'${r.id}',this)">
         </div>
         <span class="task-label">${esc(r.name)}${dayTag}</span>
       </div>`;
@@ -386,15 +348,15 @@ function renderWeek() {
     const taskRows=(day.tasks||[]).map(t=>`
       <div class="task-row ${t.done?'done':''}">
         <div class="sparkle-wrap">
-          <input class="cb" type="checkbox" ${t.done?'checked':''} onchange="window._toggleTask(${i},'${t.id}',this)">
+          <input class="cb" type="checkbox" ${t.done?'checked':''} onchange="toggleTask(${i},'${t.id}',this)">
         </div>
         <span class="task-label">${esc(t.label)}</span>
         ${t.recurring?'<span class="recurring-badge">🔁</span>':''}
-        <button class="del-btn" onclick="window._delTask(${i},'${t.id}')">✕</button>
+        <button class="del-btn" onclick="delTask(${i},'${t.id}')">✕</button>
       </div>`).join('');
 
     return `<div class="day-card ${isToday?'today':''}">
-      <div class="day-header" onclick="window._toggleCollapse(${i})">
+      <div class="day-header" onclick="toggleCollapse(${i})">
         <span class="day-name">${DAY_NAMES[i]}</span>
         <span class="day-date">${mmdd}</span>
         ${isToday?'<span class="today-badge">今日</span>':''}
@@ -406,22 +368,40 @@ function renderWeek() {
         <div class="section-label" style="margin-top:6px">やりたいこと</div>
         ${(day.tasks&&day.tasks.length)?taskRows:'<div class="empty">まだなし</div>'}
         <div class="add-row">
-          <input class="add-input" id="inp${i}" placeholder="追加…" onkeydown="if(event.key==='Enter')window._addTask(${i})">
+          <input class="add-input" id="inp${i}" placeholder="追加…" onkeydown="if(event.key==='Enter')addTask(${i})">
           <select class="add-select" id="sel${i}"><option value="once">1回</option><option value="recurring">毎週</option></select>
-          <button class="add-btn" onclick="window._addTask(${i})">＋</button>
+          <button class="add-btn" onclick="addTask(${i})">＋</button>
         </div>
       </div>
     </div>`;
   }).join('');
 }
 
+function toggleCollapse(i) {
+  if(state.weeks[i].date===today)return;
+  collapsed[i]=!collapsed[i];
+  try{localStorage.setItem('adhd_collapsed',JSON.stringify(collapsed));}catch{}
+  renderWeek();
+}
 function sparkle(el) {
   const wrap=el.closest('.sparkle-wrap');if(!wrap)return;
   const sp=document.createElement('span');sp.className='sparkle-pop';
   sp.textContent=EMOJIS[Math.floor(Math.random()*EMOJIS.length)];
   wrap.appendChild(sp);setTimeout(()=>sp.remove(),800);
 }
-
+function toggleRoutine(i,rid,el) {
+  if(!state.weeks[i].checked)state.weeks[i].checked={};
+  state.weeks[i].checked[rid]=el.checked;
+  if(el.checked)sparkle(el);
+  el.closest('.task-row').className='task-row'+(el.checked?' done':'');
+  save(state);renderSummary();updateProgress(i);
+}
+function toggleTask(i,id,el) {
+  const t=state.weeks[i].tasks.find(t=>t.id===id);
+  if(t){t.done=el.checked;if(el.checked)sparkle(el);}
+  el.closest('.task-row').className='task-row'+(el.checked?' done':'');
+  save(state);renderSummary();updateProgress(i);
+}
 function updateProgress(i) {
   const day=state.weeks[i];
   const applicable=state.routines.filter(r=>routineApplies(r,i));
@@ -436,67 +416,34 @@ function updateProgress(i) {
     if(lbl)lbl.textContent=pct+'%';
   }
 }
-
-// ── グローバル関数（onchangeから呼ぶため） ──
-window._toggleCollapse = (i) => {
-  if(state.weeks[i].date===today)return;
-  collapsed[i]=!collapsed[i];
-  renderWeek();
-};
-window._toggleRoutine = (i,rid,el) => {
-  if(!state.weeks[i].checked)state.weeks[i].checked={};
-  state.weeks[i].checked[rid]=el.checked;
-  if(el.checked)sparkle(el);
-  el.closest('.task-row').className='task-row'+(el.checked?' done':'');
-  scheduleSave();renderSummary();updateProgress(i);
-};
-window._toggleTask = (i,id,el) => {
-  const t=state.weeks[i].tasks.find(t=>t.id===id);
-  if(t){t.done=el.checked;if(el.checked)sparkle(el);}
-  el.closest('.task-row').className='task-row'+(el.checked?' done':'');
-  scheduleSave();renderSummary();updateProgress(i);
-};
-window._addTask = (i) => {
+function addTask(i) {
   const inp=document.getElementById('inp'+i),sel=document.getElementById('sel'+i);
   const label=inp.value.trim();if(!label)return;
   const recurring=sel.value==='recurring';
   if(recurring){state.weeks.forEach(d=>{if(!d.tasks)d.tasks=[];d.tasks.push({id:uid(),label,done:false,recurring:true});});}
   else{if(!state.weeks[i].tasks)state.weeks[i].tasks=[];state.weeks[i].tasks.push({id:uid(),label,done:false,recurring:false});}
-  inp.value='';scheduleSave();render();
-};
-window._delTask = (i,id) => {
+  inp.value='';save(state);render();
+}
+function delTask(i,id) {
   const t=state.weeks[i].tasks.find(t=>t.id===id);if(!t)return;
   if(t.recurring){state.weeks.forEach(d=>{d.tasks=(d.tasks||[]).filter(x=>!(x.label===t.label&&x.recurring));});}
   else{state.weeks[i].tasks=state.weeks[i].tasks.filter(x=>x.id!==id);}
-  scheduleSave();render();
-};
-window._setRoutineDayAll = (ri) => { state.routines[ri].days=[]; scheduleSave();renderRoutineList();renderWeek(); };
-window._toggleRoutineDay = (ri,dayIdx) => {
-  const days=state.routines[ri].days||[];
-  state.routines[ri].days=days.includes(dayIdx)?days.filter(d=>d!==dayIdx):[...days,dayIdx].sort((a,b)=>a-b);
-  scheduleSave();renderRoutineList();renderWeek();
-};
-window._delRoutine = (ri) => {
-  const r=state.routines[ri];
-  state.routines.splice(ri,1);
-  state.weeks.forEach(d=>{if(d.checked)delete d.checked[r.id];});
-  scheduleSave();render();
-};
-window._toggleNewDayAll = () => { newRoutineDays=[]; renderNewDayChips(); };
-window._toggleNewDay = (i) => {
-  newRoutineDays=newRoutineDays.includes(i)?newRoutineDays.filter(d=>d!==i):[...newRoutineDays,i].sort((a,b)=>a-b);
-  renderNewDayChips();
-};
-
-window.addRoutine = () => {
+  save(state);render();
+}
+function addRoutine() {
   const inp=document.getElementById('routineInput');
   const name=inp.value.trim();if(!name)return;
   state.routines.push({id:uid(),name,days:[...newRoutineDays]});
-  inp.value='';newRoutineDays=[];scheduleSave();render();
-};
-window.toggleSettings = () => { document.getElementById('settingsPanel').classList.toggle('open'); };
-
-window.openReset = () => {
+  inp.value='';newRoutineDays=[];save(state);render();
+}
+function delRoutine(ri) {
+  const r=state.routines[ri];
+  state.routines.splice(ri,1);
+  state.weeks.forEach(d=>{if(d.checked)delete d.checked[r.id];});
+  save(state);render();
+}
+function toggleSettings() { document.getElementById('settingsPanel').classList.toggle('open'); }
+function openReset() {
   resetItems=[];
   state.weeks.forEach((day,i)=>{(day.tasks||[]).forEach(t=>{if(!t.done&&!t.recurring)resetItems.push({...t,dayIdx:i,dayName:DAY_NAMES[i],carry:true});});});
   document.getElementById('resetList').innerHTML=resetItems.length===0
@@ -506,26 +453,27 @@ window.openReset = () => {
         <span class="modal-item-day">${t.dayName.slice(0,2)}</span>
         <span class="modal-item-label">${esc(t.label)}</span>
         <div class="modal-item-btns">
-          <button id="cb_${t.id}" class="btn-primary" style="font-size:12px;padding:5px 10px" onclick="window._setCarry('${t.id}',true)">来週へ</button>
-          <button id="cd_${t.id}" style="font-size:12px;padding:5px 10px" onclick="window._setCarry('${t.id}',false)">削除</button>
+          <button id="cb_${t.id}" class="btn-primary" style="font-size:12px;padding:5px 10px" onclick="setCarry('${t.id}',true)">来週へ</button>
+          <button id="cd_${t.id}" style="font-size:12px;padding:5px 10px" onclick="setCarry('${t.id}',false)">削除</button>
         </div></div>`).join('');
   document.getElementById('resetModal').classList.add('open');
-};
-window._setCarry = (id,carry) => {
+}
+function setCarry(id,carry) {
   const item=resetItems.find(t=>t.id===id);if(!item)return;
   item.carry=carry;
   const mi=document.getElementById('mi_'+id);if(mi)mi.className='modal-item'+(carry?' carry':'');
   const cb=document.getElementById('cb_'+id);if(cb)cb.className=carry?'btn-primary':'';
   const cd=document.getElementById('cd_'+id);if(cd)cd.className=carry?'':'btn-danger';
-};
-window.closeReset = () => { document.getElementById('resetModal').classList.remove('open'); };
-window.doReset = () => {
+}
+function closeReset() { document.getElementById('resetModal').classList.remove('open'); }
+function doReset() {
   const carryover=resetItems.filter(t=>t.carry).map(t=>({id:uid(),label:t.label,done:false,recurring:false}));
   const seen=new Set(),recurring=[];
   state.weeks.forEach(d=>(d.tasks||[]).forEach(t=>{if(t.recurring&&!seen.has(t.label)){seen.add(t.label);recurring.push(t);}}));
   state.weeks=buildWeek(carryover).map(d=>({...d,tasks:[...d.tasks,...recurring.map(t=>({id:uid(),label:t.label,done:false,recurring:true}))]}));
-  state.carryover=[];scheduleSave();closeReset();render();
-};
+  state.carryover=[];save(state);closeReset();render();
+}
+render();
 </script>
 </body>
 </html>
